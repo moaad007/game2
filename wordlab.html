@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEC Word Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #0875ff;
+    --blue-soft: #3b9dff;
+    --navy: #071326;
+    --navy-2: #0c2138;
+    --pink: #e43280;
+    --ink: #eaf2ff;
+    --ink-dim: #9fb4d8;
+    --good: #2ecc8f;
+    --bad: #ff5d7a;
+    --card: rgba(255, 255, 255, 0.055);
+    --card-line: rgba(255, 255, 255, 0.12);
+    --slot-bg: rgba(255, 255, 255, .045);
+    --slot-line: rgba(159, 180, 216, .4);
+    --tile-a: rgba(255, 255, 255, .13);
+    --tile-b: rgba(255, 255, 255, .06);
+    --pool-bg: rgba(255, 255, 255, .035);
+    --pool-line: rgba(255, 255, 255, .13);
+    --shell-shadow: 0 18px 50px rgba(0, 0, 0, .3);
+    --radius: 20px;
+  }
+  body.light {
+    --blue-soft: #0566d8;
+    --navy: #ffffff;
+    --navy-2: #ffffff;
+    --ink: #12253f;
+    --ink-dim: #4d6484;
+    --good: #0b9d66;
+    --card: rgba(18, 48, 84, .055);
+    --card-line: rgba(18, 48, 84, .16);
+    --slot-bg: rgba(18, 48, 84, .04);
+    --slot-line: rgba(77, 100, 132, .55);
+    --tile-a: #ffffff;
+    --tile-b: #f3f7fd;
+    --pool-bg: rgba(18, 48, 84, .045);
+    --pool-line: rgba(18, 48, 84, .16);
+    --shell-shadow: 0 18px 48px rgba(24, 60, 104, .18);
+  }
+  body.light::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(900px 600px at 12% -8%, #dcebff 0%, transparent 60%),
+      radial-gradient(800px 620px at 96% 108%, #ffe3f1 0%, transparent 58%),
+      linear-gradient(165deg, #eef4fc, #e2ebf8);
+  }
+  body.light .orb { display: none; }
+  body.light .game-shell { background: #ffffff; }
+  body.light .tile { border-color: rgba(18, 48, 84, .18); box-shadow: 0 3px 8px rgba(24, 60, 104, .13); }
+  body.light .tile:hover { box-shadow: 0 6px 14px rgba(24, 60, 104, .18); }
+  body.light .topic-chip { background: #ffffff; }
+  body.light .topic-chip.selected { background: rgba(8, 117, 255, .1); }
+  body.light .score-pill { background: rgba(228, 50, 128, .1); border-color: rgba(228, 50, 128, .32); color: #c2255c; }
+  body.light .score-pill svg { color: #e43280; }
+  body.light .progress-track { background: rgba(18, 48, 84, .1); }
+  body.light .icon-btn { background: #ffffff; }
+  body.light .result-stars svg { color: #f5a623; }
+  body.light .pool::before { background: #ffffff; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Nunito', 'Segoe UI', sans-serif;
+    background: var(--navy);
+    color: var(--ink);
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* ambient background */
+  .orb { position: fixed; border-radius: 50%; filter: blur(90px); opacity: .32; pointer-events: none; z-index: 0; }
+  .orb-1 { width: 420px; height: 420px; background: var(--blue); top: -140px; left: -120px; }
+  .orb-2 { width: 380px; height: 380px; background: var(--pink); bottom: -150px; right: -110px; opacity: .22; }
+
+  /* full-bleed app: fills the viewport / embedding iframe, edge to edge */
+  #app {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    padding: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .screen { display: none; animation: fadeUp .35s ease; }
+  .screen.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- generic bits ---------- */
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--card-line);
+    border-radius: 999px; padding: 6px 14px; font-weight: 800; font-size: 14px;
+  }
+  .btn {
+    appearance: none; border: none; cursor: pointer; font-family: inherit;
+    font-weight: 800; font-size: 16px; color: #fff;
+    background: linear-gradient(180deg, var(--blue-soft), var(--blue));
+    border-radius: 999px; padding: 13px 26px;
+    box-shadow: 0 6px 18px rgba(8, 117, 255, .35), inset 0 1px 0 rgba(255,255,255,.25);
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
+  .btn:active { transform: translateY(0) scale(.97); }
+  .btn.ghost { background: var(--card); border: 1px solid var(--card-line); box-shadow: none; color: var(--ink); }
+  .btn.pink { background: linear-gradient(180deg, #f0609b, var(--pink)); box-shadow: 0 6px 18px rgba(228,50,128,.35), inset 0 1px 0 rgba(255,255,255,.25); }
+  .btn.small { padding: 9px 18px; font-size: 14px; }
+
+  /* ---------- home ---------- */
+  .brand { text-align: center; margin: 26px 0 6px; }
+  .brand .logo {
+    width: 84px; height: 84px; border-radius: 26px; margin: 0 auto 14px;
+    background: linear-gradient(160deg, var(--blue), #064bb3);
+    color: #fff; /* icon stays white on the blue tile in both themes */
+    display: flex; align-items: center; justify-content: center; font-size: 44px;
+    box-shadow: 0 14px 34px rgba(8,117,255,.4), inset 0 2px 0 rgba(255,255,255,.28);
+  }
+  .brand h1 { font-size: 34px; font-weight: 900; letter-spacing: .5px; }
+  .brand h1 em { font-style: normal; color: var(--blue-soft); }
+  .brand p { color: var(--ink-dim); font-weight: 700; margin-top: 6px; font-size: 15px; }
+
+  .section-label {
+    display: flex; align-items: center; gap: 12px; margin: 30px 0 14px;
+    color: var(--ink-dim); font-weight: 800; font-size: 13px; letter-spacing: 1.6px; text-transform: uppercase;
+  }
+  .section-label::before, .section-label::after { content: ""; height: 1px; flex: 1; background: var(--card-line); }
+
+  .topic-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .topic-chip {
+    cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    background: var(--card); border: 2px solid var(--card-line); border-radius: 999px;
+    padding: 9px 16px 9px 13px; font-family: inherit; font-weight: 800; font-size: 14.5px; color: var(--ink);
+    transition: border-color .15s ease, background .15s ease, transform .12s ease;
+  }
+  .topic-chip svg { width: 18px; height: 18px; color: var(--blue-soft); }
+  .topic-chip:hover { transform: translateY(-2px); border-color: rgba(59, 157, 255, .5); }
+  .topic-chip.selected { border-color: var(--blue); background: rgba(8, 117, 255, .16); }
+  .start-actions { display: flex; justify-content: center; margin-top: 34px; }
+  .play-btn { font-size: 22px; letter-spacing: 2px; padding: 17px 70px; animation: playPulse 2.4s ease-in-out infinite; }
+  @keyframes playPulse {
+    0%, 100% { box-shadow: 0 6px 18px rgba(8, 117, 255, .35), inset 0 1px 0 rgba(255, 255, 255, .25); }
+    50% { box-shadow: 0 10px 34px rgba(8, 117, 255, .62), inset 0 1px 0 rgba(255, 255, 255, .25); transform: translateY(-2px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .play-btn { animation: none; } }
+
+  .footnote { text-align: center; color: var(--ink-dim); font-size: 12.5px; font-weight: 700; margin-top: 34px; line-height: 1.6; }
+
+  /* ---------- loading ---------- */
+  #screen-loading.active { justify-content: center; align-items: center; }
+  .load-emoji { font-size: 64px; display: inline-block; animation: bounce 1s infinite ease-in-out alternate; }
+  @keyframes bounce { from { transform: translateY(0) } to { transform: translateY(-18px) } }
+  #load-status { margin-top: 22px; font-weight: 800; font-size: 17px; }
+  #load-sub { margin-top: 8px; color: var(--ink-dim); font-weight: 700; font-size: 14px; min-height: 20px; }
+  .load-bar { width: 220px; height: 8px; background: var(--card); border: 1px solid var(--card-line); border-radius: 99px; margin: 26px auto 0; overflow: hidden; }
+  .load-bar i { display: block; height: 100%; width: 30%; border-radius: 99px; background: linear-gradient(90deg, var(--blue), var(--pink)); animation: slide 1.2s infinite ease-in-out; }
+  @keyframes slide { 0% { margin-left: -35% } 100% { margin-left: 100% } }
+
+    /* ---------- game chrome ---------- */
+  /* start + loading screens center their content in the full viewport */
+  #screen-home.active { justify-content: center; align-items: center; }
+  #screen-loading.active { justify-content: center; align-items: center; }
+  #screen-loading { text-align: center; }
+
+  /* the game shell IS the page in the embed — no outer margins, no card chrome */
+  .game-shell {
+    background: var(--card);
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: clamp(8px, 1.6vmin, 14px) clamp(10px, 1.8vmin, 18px) clamp(10px, 1.8vmin, 18px);
+    flex: 1; display: flex; flex-direction: column; min-height: 0;
+    width: 100%;
+  }
+  /* the shell IS the card — flatten the inner cards the renderers draw */
+  .game-shell .card { background: transparent; border: none; padding: 0; }
+  .game-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--card-line); flex: 0 0 auto; }
+  #game-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #game-body > .card { width: 100%; }
+  #game-body > .card.scramble-stage { flex: 1; display: flex; flex-direction: column; }
+  .scramble-stage .slots { margin: auto 0; }
+  .scramble-stage .pool { margin-top: auto; }
+  .scramble-stage .scramble-actions { margin-top: 14px; flex: 0 0 auto; }
+  #game-body > .card.solved-box, #game-body > .results { margin-top: auto; margin-bottom: auto; }
+  .icon-btn {
+    cursor: pointer; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 14px;
+    background: var(--card); border: 1px solid var(--card-line);
+    display: flex; align-items: center; justify-content: center; font-size: 19px; color: var(--ink);
+    transition: background .15s ease;
+  }
+  .icon-btn:hover { background: rgba(59,157,255,.14); }
+  .progress-track { flex: 1; height: 10px; border-radius: 99px; background: var(--card); border: 1px solid var(--card-line); overflow: hidden; }
+  .progress-track i { display: block; height: 100%; width: 0%; border-radius: 99px; background: linear-gradient(90deg, var(--blue), var(--blue-soft)); transition: width .4s ease; }
+  .score-pill { background: rgba(228,50,128,.13); border-color: rgba(240,96,155,.4); color: #ff9dc2; }
+
+  .card { background: var(--card); border: 1px solid var(--card-line); border-radius: var(--radius); padding: 20px; }
+  .hint-def { color: var(--ink-dim); font-weight: 700; font-size: 15px; line-height: 1.55; text-align: center; }
+  .hint-def b { color: var(--ink); }
+
+  /* ---------- scramble ---------- */
+  .scramble-stage { text-align: center; }
+  .slots { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 24px 0; min-height: 62px; }
+  .slot {
+    width: 52px; height: 62px; border-radius: 14px; cursor: pointer;
+    background: var(--slot-bg); border: 2px dashed var(--slot-line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 27px; font-weight: 900; text-transform: uppercase; color: var(--blue-soft);
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .slot.filled { border-style: solid; border-color: rgba(59,157,255,.65); background: rgba(8,117,255,.14); cursor: pointer; }
+  .slot.locked { border-color: var(--good); background: rgba(46,204,143,.14); color: var(--good); }
+  .pool {
+    position: relative;
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    margin: 16px 0 20px; padding: 15px 10px 13px; min-height: 88px;
+    background: var(--pool-bg);
+    border: 2px solid var(--pool-line);
+    border-radius: 16px;
+    box-shadow: inset 0 3px 10px rgba(0, 0, 0, .28);
+  }
+  .pool::before {
+    content: 'LETTER BOX';
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    font-size: 9.5px; font-weight: 900; letter-spacing: 2.5px; color: var(--ink-dim);
+    background: var(--navy-2); padding: 0 10px; border-radius: 99px;
+    border: 1px solid var(--card-line);
+  }
+  /* round-start rain: tiles fall from above and bounce into the box */
+  .tile.falling {
+    animation: tileFall 560ms cubic-bezier(.25, .9, .3, 1.05) backwards;
+    animation-delay: calc(var(--i, 0) * 60ms);
+    pointer-events: none;
+  }
+  @keyframes tileFall {
+    0% { transform: translateY(-48vh) rotate(var(--r, 8deg)) scale(1.04); opacity: 0; }
+    55% { opacity: 1; }
+    70% { transform: translateY(0) rotate(0deg); }
+    84% { transform: translateY(-13px); }
+    100% { transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tile.falling { animation: none; }
+  }
+  .tile {
+    cursor: pointer; width: 52px; height: 62px; border-radius: 14px;
+    background: linear-gradient(180deg, var(--tile-a), var(--tile-b));
+    border: 1px solid var(--card-line); box-shadow: 0 4px 10px rgba(0,0,0,.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 27px; font-weight: 900; text-transform: uppercase;
+    transition: transform .12s ease, opacity .15s ease;
+  }
+  .tile:hover { transform: translateY(-3px); }
+  .tile.used { opacity: 0; pointer-events: none; transform: scale(.6); }
+
+  /* drag & drop */
+  .tile, .slot { touch-action: none; user-select: none; -webkit-user-select: none; }
+  .tile { cursor: grab; }
+  .slot.filled { cursor: grab; }
+  body.scr-dragging, body.scr-dragging * { cursor: grabbing !important; }
+  .tile.lifted { opacity: .25; }
+  .slot.lifted-slot { opacity: .3; }
+  .tile.drag-ghost {
+    position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; margin: 0;
+    /* transform is driven by JS: translate(x,y) translate(-50%,-58%) rotate(2.5deg) scale(1.15) */
+    box-shadow: 0 18px 38px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .12);
+    background: linear-gradient(180deg, #2f66b8, var(--blue));
+    border-color: rgba(255, 255, 255, .5);
+    will-change: transform;
+  }
+  .slot.drop-ok { border-color: #bfe3ff; background: rgba(59, 157, 255, .28); transform: scale(1.1); }
+  /* gentle pulse on every open slot while a pool tile is being dragged */
+  body.scr-dragging-pool .slot:not(.filled):not(.locked) { animation: slotGuide 1.1s ease-in-out infinite; border-color: rgba(59, 157, 255, .5); }
+  @keyframes slotGuide { 0%, 100% { background: rgba(255, 255, 255, .03); } 50% { background: rgba(59, 157, 255, .14); } }
+  /* the pool lights up while dragging a letter out of a slot */
+  .pool.pool-drop-ok {
+    background: rgba(59, 157, 255, .09);
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1.5px rgba(59, 157, 255, .45);
+  }
+  /* landing bounce when a letter settles into a slot */
+  .slot.pop { animation: slotPop .28s cubic-bezier(.2, .8, .3, 1.4); }
+  @keyframes slotPop { 0% { transform: scale(1); } 45% { transform: scale(1.16); background: rgba(8, 117, 255, .32); } 100% { transform: scale(1); } }
+
+  /* scramble hint reveals */
+  /* the meaning (3rd) hint stands out in gold */
+  @keyframes hintPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 193, 94, .4); }
+    50% { box-shadow: 0 0 0 8px rgba(255, 193, 94, 0); }
+  }
+  #scr-def.meaning {
+    margin: 4px auto 14px;
+    max-width: 640px;
+    padding: 12px 18px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255, 209, 102, .15), rgba(255, 209, 102, .06));
+    border: 1.5px solid rgba(255, 209, 102, .5);
+    box-shadow: 0 6px 24px rgba(255, 193, 94, .16);
+    color: var(--ink);
+    font-size: 16.5px;
+    animation: meaningPop .45s cubic-bezier(.2, .8, .3, 1.3);
+  }
+  #scr-def.meaning svg { width: 19px; height: 19px; color: #ffd166; }
+  #scr-def.meaning b { color: var(--ink); }
+  @keyframes meaningPop {
+    0% { transform: scale(.85); opacity: 0; }
+    100% { transform: none; opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn.btn-hint.hot { animation: none; }
+    #scr-def.meaning { animation: none; }
+  }
+  /* prominent action buttons under the letter box */
+  .scramble-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .scramble-actions .btn.small { font-size: 15px; padding: 12px 26px; }
+  .btn.btn-hint {
+    background: linear-gradient(180deg, var(--blue-soft), var(--blue));
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(8, 117, 255, .38), inset 0 1px 0 rgba(255, 255, 255, .25);
+  }
+  .btn.btn-hint:disabled {
+    background: var(--card); color: var(--ink-dim);
+    box-shadow: none; transform: none; filter: none;
+  }
+  .btn.btn-hint.hot {
+    background: linear-gradient(180deg, #ffd166, #f5a623);
+    color: #4a3200;
+    border-color: rgba(255, 209, 102, .7);
+    box-shadow: 0 6px 22px rgba(255, 193, 94, .45), inset 0 1px 0 rgba(255, 255, 255, .4);
+    animation: hintPulse 1.7s ease-in-out infinite;
+  }
+  .btn.btn-skip {
+    background: rgba(228, 50, 128, .13);
+    border: 1.5px solid rgba(240, 96, 155, .55);
+    color: #ff9dc2;
+    box-shadow: none;
+  }
+  .btn.btn-skip:hover { transform: translateY(-2px); background: rgba(228, 50, 128, .2); }
+  body.light .btn.btn-skip { background: rgba(228, 50, 128, .08); color: #c2255c; }
+  body.light .btn.btn-skip:hover { background: rgba(228, 50, 128, .14); }
+
+  .solved-box { text-align: center; animation: popIn .35s ease; }
+  @keyframes popIn { from { transform: scale(.8); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  .solved-word { font-size: 34px; font-weight: 900; color: var(--good); letter-spacing: 3px; text-transform: uppercase; }
+
+  .shake { animation: shake .4s ease; }
+  @keyframes shake { 0%,100% { transform: translateX(0) } 20% { transform: translateX(-9px) } 40% { transform: translateX(9px) } 60% { transform: translateX(-6px) } 80% { transform: translateX(6px) } }
+
+  /* ---------- results ---------- */
+  .results {
+    text-align: center;
+    animation: fadeUp .35s ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px;
+    width: 100%; max-width: 560px;
+    margin: auto; padding: 8px 0 4px;
+  }
+  .result-stars { margin: 2px 0 0; }
+  .result-score { font-size: clamp(34px, 6.4vmin, 52px); line-height: 1.05; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 400px; margin: 8px 0 0; }
+  .result-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  .result-stars span { display: inline-block; animation: popIn .4s ease backwards; }
+  .result-stars span:nth-child(2) { animation-delay: .18s; }
+  .result-stars span:nth-child(3) { animation-delay: .36s; }
+  .r-star.off { opacity: .5; }
+  .result-score { font-weight: 900; color: var(--blue-soft); }
+  .result-label { color: var(--ink-dim); font-weight: 800; letter-spacing: 2px; text-transform: uppercase; font-size: 13px; }
+  .result-stat { background: var(--card); border: 1px solid var(--card-line); border-radius: 16px; padding: 16px 8px; }
+  .result-stat .v { font-size: 26px; font-weight: 900; }
+  .result-stat .k { color: var(--ink-dim); font-size: 12.5px; font-weight: 800; margin-top: 3px; }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+    background: var(--navy-2); border: 1px solid var(--card-line); color: var(--ink);
+    border-radius: 14px; padding: 12px 20px; font-weight: 800; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; z-index: 50;
+    box-shadow: 0 12px 30px rgba(0,0,0,.45); max-width: 86vw; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- svg icon system ---------- */
+  .ic { width: 1.15em; height: 1.15em; flex: 0 0 auto; vertical-align: -0.2em; }
+  .brand .logo svg { width: 42px; height: 42px; }
+  .topic-chip svg { width: 18px; height: 18px; }
+  .load-emoji svg { width: 62px; height: 62px; }
+  .result-stars svg { width: 46px; height: 46px; color: #ffd166; }
+  .score-pill svg { width: 15px; height: 15px; color: #ffd166; }
+  .icon-btn svg { width: 19px; height: 19px; }
+
+  /* success animations */
+  .confetti {
+    position: fixed; z-index: 90; pointer-events: none; border-radius: 2px;
+    animation: confettiFly var(--dur, 900ms) cubic-bezier(.15, .6, .4, 1) forwards;
+  }
+  @keyframes confettiFly {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    70% { opacity: 1; }
+    100% { transform: translate(var(--dx), calc(var(--dy) + 260px)) rotate(var(--rot)); opacity: 0; }
+  }
+  .float-pts {
+    position: fixed; z-index: 91; pointer-events: none;
+    transform: translateX(-50%);
+    font-weight: 900; font-size: 24px; color: #ffd166;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, .45);
+    animation: ptsRise 1s ease-out forwards;
+  }
+  @keyframes ptsRise {
+    0% { opacity: 0; translate: 0 8px; }
+    25% { opacity: 1; }
+    100% { opacity: 0; translate: 0 -48px; }
+  }
+  .solved-word span {
+    display: inline-block;
+    animation: letterPop .42s cubic-bezier(.2, .8, .3, 1.4) backwards;
+  }
+  @keyframes letterPop {
+    from { transform: scale(0) rotate(-14deg); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .confetti, .float-pts { display: none; }
+    .solved-word span { animation: none; }
+  }
+
+  @media (max-width: 480px) {
+    .slot, .tile { width: 38px; height: 46px; font-size: 20px; }
+    .brand h1 { font-size: 28px; }
+  }
+
+  /* short embeds (platform iframes): compact vertical tiers */
+  @media (max-height: 640px) {
+    .slot, .tile { width: 46px; height: 56px; font-size: 24px; }
+    .slots { min-height: 52px; }
+    .pool { min-height: 72px; padding: 12px 8px 10px; }
+    .game-top { gap: 8px; margin-bottom: 8px; padding-bottom: 8px; }
+    .icon-btn { width: 38px; height: 38px; flex-basis: 38px; font-size: 16px; }
+    .brand { margin: 8px 0 2px; }
+    .brand .logo { width: 62px; height: 62px; border-radius: 20px; font-size: 32px; }
+    .brand h1 { font-size: 27px; }
+    .brand p { font-size: 13px; }
+    .section-label { margin: 16px 0 10px; }
+    .topic-chip { padding: 7px 13px 7px 11px; font-size: 13px; }
+    .play-btn { font-size: 19px; padding: 14px 56px; margin-top: 18px; }
+    .footnote { margin-top: 18px; font-size: 11.5px; }
+    .hint-def { font-size: 13.5px; }
+    .result-score { font-size: 40px; }
+    .result-stars svg { width: 38px; height: 38px; }
+    .result-actions { margin-top: 18px; }
+    .scramble-actions .btn.small { padding: 8px 15px; font-size: 13px; }
+  }
+  @media (max-height: 500px) {
+    .slot, .tile { width: 38px; height: 46px; font-size: 20px; }
+    .slots { min-height: 44px; }
+    .pool { min-height: 60px; padding: 9px 6px 8px; }
+    .brand .logo { width: 48px; height: 48px; border-radius: 16px; font-size: 25px; }
+    .brand h1 { font-size: 22px; }
+    .play-btn { font-size: 16px; padding: 11px 42px; margin-top: 12px; }
+    .topic-chip { padding: 5px 10px 5px 9px; font-size: 12px; gap: 6px; }
+    .topic-chip svg { width: 14px; height: 14px; }
+    .footnote { display: none; }
+    .load-emoji svg { width: 42px; height: 42px; }
+    .result-score { font-size: 30px; }
+    .result-stars svg { width: 30px; height: 30px; }
+    .result-grid { margin-top: 12px; gap: 8px; }
+    .result-stat .v { font-size: 20px; }
+    .scramble-actions .btn.small { padding: 7px 12px; font-size: 12px; }
+    .solved-word { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div id="app">
+
+  <!-- HOME / START -->
+  <section class="screen active" id="screen-home">
+    <div class="brand">
+      <div class="logo" id="brand-logo"></div>
+      <h1>BEC <em>Word Lab</em></h1>
+      <p>Unscramble the mystery words!</p>
+    </div>
+    <div class="section-label">Topic</div>
+    <div class="topic-chips" id="topic-chips"></div>
+    <div class="start-actions">
+      <button class="btn play-btn" id="btn-play">PLAY</button>
+    </div>
+    <p class="footnote">Drag the falling letters into the right order to spell each word.<br>Stuck? A hint reveals a letter, then the word's meaning.</p>
+  </section>
+
+  <!-- LOADING -->
+  <section class="screen" id="screen-loading">
+    <span class="load-emoji" id="load-emoji"></span>
+    <div id="load-status">Collecting your words…</div>
+    <div id="load-sub"></div>
+    <div class="load-bar"><i></i></div>
+  </section>
+
+  <!-- GAME (one shell contains the header, every round, and the results) -->
+  <section class="screen" id="screen-game">
+    <div class="game-shell">
+      <div class="game-top">
+        <button class="icon-btn" id="btn-game-back" title="Back"></button>
+        <div class="progress-track"><i id="game-progress"></i></div>
+        <span class="pill score-pill" id="score-pill"><span id="game-score">0</span></span>
+        <button class="icon-btn" id="btn-mute" title="Sound"></button>
+      </div>
+      <div id="game-body"></div>
+    </div>
+  </section>
+
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ================================================================
+   BEC WORD LAB — standalone vocabulary game
+   Data: curated Grade-4 seed banks + live Datamuse words (md=df),
+   photos from Wikimedia Commons, localStorage cache (7 days).
+   ================================================================ */
+
+/* Topic metadata — "all" is a pseudo-topic mixing every category */
+const topicMeta = (cat) => cat === 'all'
+  ? { name: 'All topics', icon: 'shuffle' }
+  : { name: CATEGORIES[cat].name, icon: CATEGORIES[cat].icon };
+
+/* ---------------- config ---------------- */
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_WORDS = 16;
+
+const CATEGORIES = {
+  technology: { name: 'Technology', icon: 'monitor', api: 'ml=computer' },
+  animals:    { name: 'Animals',    icon: 'paw',     api: 'rel_trg=zoo' },
+  food:       { name: 'Food',       icon: 'utensils',api: 'ml=breakfast' },
+  school:     { name: 'School',     icon: 'cap',     api: 'ml=classroom' },
+  sports:     { name: 'Sports',     icon: 'trophy',  api: 'ml=soccer' },
+  nature:     { name: 'Nature',     icon: 'leaf',    api: 'ml=tree' },
+};
+
+
+/* Curated seed banks: guaranteed kid-friendly, offline-safe. */
+const SEEDS = {
+  technology: [
+    ['scanner',  'A machine that copies pictures or papers into a computer.', '📠'],
+    ['browser',  'A program used to visit websites on the internet.', '🌐', 'Web browser'],
+    ['keyboard', 'The part of a computer with letters you press to type.', '⌨️'],
+    ['printer',  'A machine that puts words and pictures onto paper.', '🖨️'],
+    ['password', 'A secret word you type to open your account.', '🔑'],
+    ['screen',   'The part of a device that shows pictures and words.', '🖥️', 'Computer monitor'],
+    ['robot',    'A machine that can move around and do jobs by itself.', '🤖'],
+    ['internet', 'A huge network that connects computers all over the world.', '🌍'],
+    ['mouse',    'A small device you move to point at things on the screen.', '🖱️', 'Computer mouse'],
+    ['download', 'To copy a file from the internet onto your device.', '⬇️'],
+    ['email',    'A message sent from one computer to another.', '✉️'],
+    ['laptop',   'A computer that folds up so you can carry it with you.', '💻'],
+    ['camera',   'A device that takes pictures and videos.', '📷'],
+    ['charger',  'A device that fills a battery with power.', '🔌'],
+    ['headset',  'A device you wear on your head to hear sound.', '🎧'],
+    ['website',  'A place on the internet with pages of information.', '📄'],
+    ['software', 'The programs that tell a computer what to do.', '💿'],
+    ['speaker',  'A device that plays sound out loud.', '🔊'],
+  ],
+  animals: [
+    ['elephant', 'A huge gray animal with a long trunk and big ears.', '🐘'],
+    ['penguin',  'A black and white bird that swims but cannot fly.', '🐧'],
+    ['kangaroo', 'An Australian animal that hops and carries its baby in a pouch.', '🦘'],
+    ['dolphin',  'A smart ocean animal that breathes air and loves to play.', '🐬'],
+    ['rabbit',   'A small animal with long ears that loves to eat carrots.', '🐰'],
+    ['giraffe',  'A tall African animal with a very long neck.', '🦒'],
+    ['turtle',   'A slow animal that carries its shell on its back.', '🐢'],
+    ['camel',    'A desert animal with one or two humps on its back.', '🐫'],
+    ['eagle',    'A big strong bird that flies very high in the sky.', '🦅'],
+    ['frog',     'A small green animal that hops and croaks.', '🐸'],
+    ['monkey',   'A playful animal that climbs trees and loves bananas.', '🐵'],
+    ['shark',    'A big ocean fish with very sharp teeth.', '🦈'],
+    ['zebra',    'An African wild horse with black and white stripes.', '🦓'],
+    ['lion',     'A big golden cat that roars loudly.', '🦁'],
+    ['whale',    'A huge ocean animal that breathes air like we do.', '🐋'],
+    ['owl',      'A bird that hunts at night and sleeps in the day.', '🦉'],
+    ['horse',    'A strong, fast animal that people ride.', '🐴'],
+    ['snake',    'A long animal with no legs that slides along the ground.', '🐍'],
+  ],
+  food: [
+    ['banana',   'A long yellow fruit that monkeys love to eat.', '🍌'],
+    ['sandwich', 'Two slices of bread with tasty food between them.', '🥪'],
+    ['carrot',   'An orange vegetable that grows under the ground.', '🥕'],
+    ['pancake',  'A flat round cake often eaten with syrup at breakfast.', '🥞'],
+    ['cheese',   'A yellow food made from milk.', '🧀'],
+    ['noodles',  'Long thin strips of pasta, often in soup.', '🍜'],
+    ['egg',      'A food with a shell that comes from a hen.', '🥚'],
+    ['popcorn',  'Corn seeds that pop into a fluffy snack.', '🍿'],
+    ['yogurt',   'A creamy milk food, often mixed with fruit.', '🍶'],
+    ['bread',    'A baked food made from flour.', '🍞'],
+    ['honey',    'A sweet golden food made by bees.', '🍯'],
+    ['grapes',   'Small sweet fruits that grow together in bunches.', '🍇'],
+    ['apple',    'A round red or green fruit that grows on trees.', '🍎'],
+    ['pizza',    'A round flat food with cheese and tomato on top.', '🍕'],
+    ['orange',   'A round juicy citrus fruit.', '🍊'],
+    ['milk',     'A white drink that comes from cows.', '🥛'],
+    ['rice',     'Tiny white grains cooked in water.', '🍚'],
+    ['cookie',   'A small sweet baked treat, often with chips.', '🍪'],
+  ],
+  school: [
+    ['pencil',   'A writing tool with lead inside that can be erased.', '✏️'],
+    ['library',  'A quiet place full of books you can read and borrow.', '📚'],
+    ['teacher',  'A person who helps students learn new things.', '👩‍🏫'],
+    ['backpack', 'A bag you carry on your back to hold your school things.', '🎒'],
+    ['notebook', 'A book of paper used for writing notes.', '📓'],
+    ['ruler',    'A flat stick used to measure and draw straight lines.', '📏'],
+    ['homework', 'School work that you do at home after school.', '📝'],
+    ['scissors', 'A tool with two blades used for cutting paper.', '✂️'],
+    ['recess',   'The time when students go outside to play during school.', '🛝'],
+    ['student',  'A person who learns new things at school.', '🧑‍🎓'],
+    ['globe',    'A round model of the Earth that spins.', '🌍'],
+    ['classroom','The room where a class learns together.', '🏫'],
+    ['crayon',   'A colored wax stick used for drawing.', '🖍️'],
+    ['brush',    'A tool with soft hairs used for painting.', '🖌️', 'Paintbrush'],
+    ['clock',    'A tool that shows the time.', '🕐'],
+    ['paper',    'Thin flat material you write and draw on.', '📄'],
+    ['gym',      'A big room where students exercise and play games.', '🤸'],
+    ['lunch',    'The meal you eat in the middle of the day.', '🍱'],
+  ],
+  sports: [
+    ['soccer',       'A game where players kick a ball into a goal.', '⚽'],
+    ['basketball',   'A game where players throw a ball into a high hoop.', '🏀'],
+    ['tennis',       'A game where players hit a ball over a net with rackets.', '🎾'],
+    ['swimming',     'Moving through water using your arms and legs.', '🏊'],
+    ['bicycle',      'A ride with two wheels that you pedal.', '🚲'],
+    ['baseball',     'A game where players hit a ball with a bat and run bases.', '⚾'],
+    ['coach',        'A person who trains and teaches a sports team.', '📣'],
+    ['trophy',       'A shiny prize you win for doing well in a game.', '🏆'],
+    ['goal',         'The net or area where players score points.', '🥅'],
+    ['marathon',     'A very, very long running race.', '🏃'],
+    ['volleyball',   'A game where players hit a ball over a tall net.', '🏐'],
+    ['skateboard',   'A board with wheels that you ride and do tricks on.', '🛹'],
+    ['golf',         'A game where you hit a small ball into a hole with a club.', '⛳'],
+    ['skiing',       'Sliding over snow on long boards.', '🎿'],
+    ['bowling',      'A game where you roll a heavy ball to knock down pins.', '🎳'],
+    ['running',      'Moving quickly on your feet.', '👟'],
+    ['team',         'A group of players who work together.', '🤝'],
+    ['winner',       'The person or side that wins the game.', '🏅'],
+  ],
+  nature: [
+    ['rainbow',   'Colorful bands of light that appear in the sky after rain.', '🌈'],
+    ['mountain',  'Very tall land that rises high above the ground.', '🏔️'],
+    ['river',     'Water that flows across the land toward the sea.', '🏞️'],
+    ['forest',    'A large area of land covered with many trees.', '🌳'],
+    ['butterfly', 'An insect with big colorful wings.', '🦋'],
+    ['thunder',   'The loud booming sound you hear during a storm.', '⛈️'],
+    ['volcano',   'A mountain that can erupt with hot lava.', '🌋'],
+    ['desert',    'A very dry place with little rain and few plants.', '🏜️'],
+    ['flower',    'The colorful, sweet-smelling part of a plant.', '🌸'],
+    ['ocean',     'The huge salty water that covers most of the Earth.', '🌊'],
+    ['snowflake', 'A tiny piece of snow with its own special pattern.', '❄️'],
+    ['seed',      'The small part of a plant that can grow into a new plant.', '🌱'],
+    ['sunset',    'The time when the sun goes down and the sky turns orange.', '🌅'],
+    ['moon',      'The bright object that lights the night sky.', '🌙'],
+    ['star',      'A tiny point of light shining in the night sky.', '✨'],
+    ['cloud',     'A white fluffy shape floating in the sky, made of water.', '☁️'],
+    ['beach',     'Sandy land beside the ocean.', '🏖️'],
+    ['leaf',      'The flat green part of a plant.', '🍃'],
+  ],
+};
+
+/* Words we never want from the API. */
+const BLOCKED = new Set([
+  'sex','sexy','porn','nude','die','dead','death','kill','gun','guns','knife','war',
+  'hell','damn','drugs','beer','wine','vodka','cigar','slave','breast','tit','tits',
+  'virus','bacteria','disease','cancer','tumor','murder','blood','bloody','weapon',
+  'bomb','attack','hate','ugly','stupid','fat','poop','fart','burp',
+  'carnal','brute','beasts','gross','animate','savage','heathen','slaughter','cruelty',
+]);
+
+/* Definition first-words that mean "not a real definition for kids". */
+const BAD_DEF_STARTS = [
+  'initialism','acronym','abbreviation','alternative','dated','obsolete','archaic',
+  'plural','singular','third-person','past','present','participle','form of','form',
+  'misspelling','ellipsis','surname','see','us ','uk ','british','american',
+];
+
+/* ---------------- tiny helpers ---------------- */
+const $ = (id) => document.getElementById(id);
+const shuffle = (a) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; };
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------------- inline SVG icon system (Lucide-style) ---------------- */
+const ICONS = {
+  flask: '<path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094"/><path d="M8.5 2h7"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  paw: '<circle cx="5.5" cy="10" r="1.9"/><circle cx="9.5" cy="6.5" r="2"/><circle cx="14.5" cy="6.5" r="2"/><circle cx="18.5" cy="10" r="1.9"/><ellipse cx="12" cy="15.8" rx="4.6" ry="3.6"/>',
+  utensils: '<path d="M3 3v7a3 3 0 0 0 6 0V3"/><line x1="6" y1="3" x2="6" y2="21"/><path d="M17 3v18"/><path d="M21 3v6a4 4 0 0 1-4 4"/>',
+  cap: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/>',
+  trophy: '<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v6a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a1 1 0 0 0-1 1 4 4 0 0 0 4 4"/><path d="M17 6h3a1 1 0 0 1 1 1 4 4 0 0 1-4 4"/>',
+  leaf: '<path d="M11 20A7 7 0 0 1 4 13C4 8 8 4 20 4c-1 12-5 16-9 16z"/><path d="M4 21c4-6 8-9 12-11"/>',
+  shuffle: '<path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/>',
+  help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  puzzle: '<path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.878l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/>',
+  bulb: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
+  volume: '<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+  volumeX: '<path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>',
+  arrowL: '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+  arrowR: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  starO: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+  play: '<polygon points="6 4 20 12 6 20 6 4"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.1" y2="4.9"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+};
+const ICON_FILLED = new Set(['paw', 'star']);
+const icon = (name, cls = '') => {
+  const attrs = ICON_FILLED.has(name)
+    ? 'fill="currentColor" stroke="none"'
+    : 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  return `<svg class="ic ${cls}" viewBox="0 0 24 24" ${attrs} aria-hidden="true">${ICONS[name] || ICONS.help}</svg>`;
+};
+
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* --- success effects --- */
+function confettiBurst(x, y, count = 26) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = ['#0875ff', '#3b9dff', '#e43280', '#ffd166', '#2ecc8f', '#ffffff'];
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti';
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    p.style.background = colors[i % colors.length];
+    p.style.setProperty('--dx', (Math.random() * 240 - 120).toFixed(0) + 'px');
+    p.style.setProperty('--dy', (-40 - Math.random() * 170).toFixed(0) + 'px');
+    p.style.setProperty('--rot', (Math.random() * 720 - 360).toFixed(0) + 'deg');
+    p.style.setProperty('--dur', (650 + Math.random() * 550).toFixed(0) + 'ms');
+    const s = 6 + Math.random() * 6;
+    p.style.width = s + 'px';
+    p.style.height = (s * 0.6).toFixed(1) + 'px';
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1350);
+  }
+}
+function floatPoints(text, x, y) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const el = document.createElement('div');
+  el.className = 'float-pts';
+  el.textContent = text;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1050);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+/* ---------------- sound (tiny synth, no assets) ---------------- */
+const Sound = {
+  ctx: null,
+  muted: localStorage.getItem('wordlab.muted') === '1',
+  ensure() { if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } },
+  tone(freq, dur, type = 'sine', vol = 0.14, when = 0) {
+    if (this.muted) return;
+    this.ensure();
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime + when;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(t); o.stop(t + dur);
+  },
+  correct() { this.tone(523, .12, 'sine', .16); this.tone(784, .18, 'sine', .16, .1); },
+  wrong() { this.tone(196, .2, 'sawtooth', .07); },
+  tap() { this.tone(340, .05, 'sine', .06); },
+  drop() { this.tone(125 + Math.random() * 45, .07, 'sine', .09); },
+  win() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, .16, 'sine', .15, i * .12)); },
+};
+
+/* ================================================================
+   DATA HUB — seeds + Datamuse + Wikimedia, cached in localStorage
+   ================================================================ */
+const DataHub = {
+  cacheKey(cat) { return 'wordlab.v7.' + cat; },
+
+  readCache(cat) {
+    try {
+      const raw = localStorage.getItem(this.cacheKey(cat));
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (Date.now() - data.ts > CACHE_TTL) return null;
+      if (!Array.isArray(data.items) || data.items.length < SESSION_WORDS) return null;
+      return data.items;
+    } catch (e) { return null; }
+  },
+
+  writeCache(cat, items) {
+    try { localStorage.setItem(this.cacheKey(cat), JSON.stringify({ ts: Date.now(), items })); } catch (e) {}
+  },
+
+  fetchJSON(url, timeoutMs = 7000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    return fetch(url, { signal: ctrl.signal })
+      .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .finally(() => clearTimeout(timer));
+  },
+
+  /* Turn one Datamuse entry into {w, d} with a kid-friendly definition, or null. */
+  cleanEntry(entry) {
+    if (!entry || !entry.word || !Array.isArray(entry.defs) || !entry.defs.length) return null;
+    const w = entry.word.toLowerCase();
+    if (!/^[a-z]{4,9}$/.test(w) || BLOCKED.has(w)) return null;
+
+    // frequency guard: skip very rare words (tags contain "f:xx.x")
+    const fTag = (entry.tags || []).find((t) => t.startsWith('f:'));
+    if (fTag && parseFloat(fTag.slice(2)) < 0.8) return null;
+
+    let best = null;
+    for (const raw of entry.defs) {
+      let d = raw.replace(/^[a-z]+\t/, '');          // strip part-of-speech
+      d = d.replace(/\([^()]*\)/g, ' ');              // strip (qualifiers)
+      d = d.replace(/\s+/g, ' ').replace(/\s([.,;])/g, '$1').trim();
+      d = d.replace(/[;\[].*$/, '').trim();           // cut at ; or [
+      if (!d) continue;
+      d = d.endsWith('.') ? d : d + '.';
+      const low = d.toLowerCase();
+      if (BAD_DEF_STARTS.some((b) => low.startsWith(b))) continue;
+      const len = d.length;
+      if (len < 20 || len > 130) continue;
+      if (!best || len < best.d.length) best = { w, d };
+    }
+    return best;
+  },
+
+  async fetchApiWords(cat, onStatus) {
+    const cfg = CATEGORIES[cat];
+    const url = `https://api.datamuse.com/words?${cfg.api}&md=df&max=100`;
+    let data;
+    try {
+      data = await this.fetchJSON(url);
+    } catch (e) {
+      return { words: [], offline: true };
+    }
+    const words = (Array.isArray(data) ? data : [])
+      .map((x) => this.cleanEntry(x))
+      .filter(Boolean);
+    return { words, offline: false };
+  },
+
+  /* Main entry: get a session-ready word list for a category. */
+  async loadCategory(cat, { forceRefresh = false } = {}, onStatus = () => {}) {
+    if (!forceRefresh) {
+      const cached = this.readCache(cat);
+      if (cached) return { items: shuffle(cached), fromCache: true, offline: false };
+    }
+
+    // "all" mixes every topic: 2 seeds per category + a few live words from each
+    if (cat === 'all') {
+      const cats = Object.keys(CATEGORIES);
+      const seedPool = [];
+      const seen = new Set();
+      for (const c of cats) {
+        for (const [w, d] of shuffle(SEEDS[c]).slice(0, 3)) {
+          if (!seen.has(w)) { seen.add(w); seedPool.push({ w, d }); }
+        }
+      }
+      onStatus('Asking the word robots for fresh words…');
+      const results = await Promise.all(cats.map((c) => this.fetchApiWords(c).catch(() => ({ words: [], offline: true }))));
+      const apiPool = [];
+      let offline = true;
+      results.forEach((r, i) => {
+        if (!r.offline) offline = false;
+        const catSeeds = new Set(SEEDS[cats[i]].map(([w]) => w));
+        r.words.filter((x) => !catSeeds.has(x.w) && !seen.has(x.w)).slice(0, 3)
+          .forEach((x) => { seen.add(x.w); apiPool.push({ w: x.w, d: x.d }); });
+      });
+      const items = shuffle([...shuffle(seedPool).slice(0, 12), ...shuffle(apiPool).slice(0, SESSION_WORDS - 12)]);
+      // top up from the remaining seed pool if the API was unreachable
+      if (items.length < SESSION_WORDS) {
+        const rest = seedPool.filter((s) => !items.some((i) => i.w === s.w));
+        items.push(...shuffle(rest).slice(0, SESSION_WORDS - items.length));
+      }
+      this.writeCache(cat, items);
+      return { items, fromCache: false, offline };
+    }
+
+    const seedItems = shuffle(SEEDS[cat]).map(([w, d]) => ({ w, d }));
+    onStatus('Asking the word robots for fresh words…');
+
+    const { words: apiWords, offline } = await this.fetchApiWords(cat);
+    const seedSet = new Set(seedItems.map((s) => s.w));
+    // keep Datamuse relevance order (best first), then cap the pool before shuffling
+    const extras = apiWords.filter((x) => !seedSet.has(x.w)).slice(0, 15).map((x) => ({ w: x.w, d: x.d }));
+
+    // mix: 10 curated seeds (quality) + up to 6 fresh API words; top up from seeds when offline
+    const picks = [...seedItems.slice(0, 10), ...shuffle(extras).slice(0, SESSION_WORDS - 10)];
+    if (picks.length < SESSION_WORDS) picks.push(...seedItems.slice(10, 10 + (SESSION_WORDS - picks.length)));
+    const items = shuffle(picks);
+
+    this.writeCache(cat, items);
+    return { items, fromCache: false, offline };
+  },
+};
+
+/* ================================================================
+   GAME — pure Word Scramble: 12 rounds, drag & drop letter tiles, hints, skip
+   ================================================================ */
+const Game = {
+  cat: null,
+  items: [],
+  plan: [],
+  round: 0,       // 0-based round index
+  rounds: 12,
+  score: 0,
+  streak: 0,
+  bestStreak: 0,
+  correct: 0,
+  answered: 0,
+  locked: false,
+
+  start(cat, items) {
+    this.cat = cat; this.items = items;
+    this.round = 0; this.score = 0; this.streak = 0; this.bestStreak = 0;
+    this.correct = 0; this.answered = 0; this.locked = false;
+    this.rounds = Math.min(12, items.length);
+
+    $('game-score').textContent = '0';
+    showScreen('screen-game');
+    this.renderRound();
+  },
+
+  addPoints(n) {
+    this.score = Math.max(0, this.score + n);
+    $('game-score').textContent = this.score;
+  },
+
+  markAnswer(wasCorrect) {
+    this.answered++;
+    if (wasCorrect) {
+      this.correct++;
+      this.streak++;
+      this.bestStreak = Math.max(this.bestStreak, this.streak);
+    } else {
+      this.streak = 0;
+    }
+  },
+
+  updateProgress() {
+    const pct = Math.round(((this.round + 1) / this.rounds) * 100);
+    $('game-progress').style.width = Math.min(100, Math.max(4, pct)) + '%';
+  },
+
+  renderRound() {
+    this.locked = false;
+    this.updateProgress();
+    this.renderScramble($('game-body'), this.items[this.round]);
+  },
+
+  nextRound() {
+    this.round++;
+    if (this.round >= this.rounds) this.finish();
+    else this.renderRound();
+  },
+
+  finish() {
+    this.locked = true;
+    $('game-progress').style.width = '100%';
+    const acc = this.answered ? Math.round((this.correct / this.answered) * 100) : 0;
+    let stars = acc >= 90 ? 3 : acc >= 65 ? 2 : acc >= 40 ? 1 : 0;
+    const titles = ['Keep practicing!', 'Nice work!', 'Great job!', 'Word champion!'];
+
+    // results render INSIDE the game shell, header stays on top
+    $('game-body').innerHTML = `
+      <div class="results">
+        <div class="result-label">${titles[stars]}</div>
+        <div class="result-stars">
+          ${`<span class="r-star">${icon('star')}</span>`.repeat(stars)}${`<span class="r-star off">${icon('starO')}</span>`.repeat(3 - stars)}
+        </div>
+        <div class="result-score">${this.score}</div>
+        <div class="result-label">points</div>
+        <div class="result-grid">
+          <div class="result-stat"><div class="v">${acc}%</div><div class="k">Accuracy</div></div>
+          <div class="result-stat"><div class="v">${this.bestStreak}</div><div class="k">Best streak</div></div>
+        </div>
+        <div class="result-actions">
+          <button class="btn" id="btn-again"></button>
+          <button class="btn ghost" id="btn-renew"></button>
+          <button class="btn pink" id="btn-new-topic"></button>
+        </div>
+      </div>`;
+    $('btn-again').innerHTML = icon('refresh') + '<span>Play again</span>';
+    $('btn-renew').innerHTML = icon('shuffle') + '<span>New words</span>';
+    $('btn-new-topic').innerHTML = icon('compass') + '<span>Change topic</span>';
+    $('btn-again').addEventListener('click', () => Game.start(Game.cat, shuffle(Game.items)));
+    $('btn-renew').addEventListener('click', () => startCategory(Game.cat, true));
+    $('btn-new-topic').addEventListener('click', () => { buildTopicChips(); showScreen('screen-home'); });
+    Sound.win();
+    // celebrate good results
+    if (stars >= 2) {
+      confettiBurst(innerWidth * 0.32, innerHeight * 0.38, 30);
+      setTimeout(() => confettiBurst(innerWidth * 0.68, innerHeight * 0.38, 30), 260);
+    }
+    if (stars === 3) setTimeout(() => confettiBurst(innerWidth * 0.5, innerHeight * 0.32, 38), 560);
+  },
+
+  /* ---------------- SCRAMBLE ---------------- */
+  renderScramble(body, item) {
+    const word = item.w;
+    let letters = shuffle(word.split(''));
+    if (word.length > 1) {
+      let tries = 0;
+      while (letters.join('') === word && tries++ < 20) letters = shuffle(letters);
+    }
+    const lockedIn = []; // indices of pool tiles pinned by hints
+    const HINTS = [
+      { label: 'Hint: letter (−3)', cost: 3 },
+      { label: 'Hint: letter (−3)', cost: 3 },
+      { label: 'Hint: meaning (−2)', cost: 2 },
+    ];
+    let hintLevel = 0;
+    const setHintBtn = (label, disabled, isMeaning) => {
+      const b = $('scr-hint');
+      b.innerHTML = icon(isMeaning && !disabled ? 'book' : 'bulb') + '<span>' + label + '</span>';
+      b.disabled = !!disabled;
+      b.classList.toggle('hot', !!isMeaning && !disabled);
+    };
+
+    body.innerHTML = `
+      <div class="card scramble-stage">
+        <p class="hint-def">${icon('shuffle')} Mystery word ${this.round + 1}/${this.rounds} — need a hint?</p>
+        <p class="hint-def" id="scr-def" hidden></p>
+        <div class="slots" id="scr-slots"></div>
+        <div class="pool" id="scr-pool"></div>
+        <div class="scramble-actions">
+          <button class="btn small btn-hint" id="scr-hint"></button>
+          <button class="btn ghost small btn-skip" id="scr-skip">${icon('arrowR')}<span>Skip</span></button>
+        </div>
+      </div>`;
+
+    const slotsEl = $('scr-slots');
+    const poolEl = $('scr-pool');
+    const state = { chosen: Array.from({ length: word.length }, () => null) }; // pool tile indexes currently in slots
+    let justDragged = false;
+
+    const setSlotVisual = (i) => {
+      const slot = slotsEl.children[i];
+      const p = state.chosen[i];
+      if (p == null) { slot.textContent = ''; slot.classList.remove('filled'); }
+      else { slot.textContent = poolEl.children[p].textContent; slot.classList.add('filled'); }
+    };
+    const maybeCheck = () => {
+      if (state.chosen.every((x) => x != null)) this.checkScramble(state, item, slotsEl, lockedIn);
+    };
+    const tapOk = () => (justDragged ? ((justDragged = false), false) : true);
+
+    for (let i = 0; i < word.length; i++) {
+      const s = document.createElement('div');
+      s.className = 'slot'; s.dataset.i = i;
+      s.addEventListener('click', () => {
+        if (!tapOk() || this.locked || lockedIn.includes(i) || state.chosen[i] == null) return;
+        poolEl.children[state.chosen[i]].classList.remove('used');
+        state.chosen[i] = null;
+        setSlotVisual(i);
+        Sound.tap();
+      });
+      slotsEl.appendChild(s);
+    }
+    letters.forEach((ch, idx) => {
+      const t = document.createElement('div');
+      t.className = 'tile falling'; t.textContent = ch; t.dataset.idx = idx;
+      t.style.setProperty('--i', idx);
+      t.style.setProperty('--r', (Math.random() * 26 - 13).toFixed(1) + 'deg');
+      // animationend is unreliable (occluded panes freeze CSS animations;
+      // prefers-reduced-motion disables them) — always clear via timer as well
+      const finishFall = () => t.classList.remove('falling');
+      t.addEventListener('animationend', finishFall, { once: true });
+      setTimeout(finishFall, 120 + 560 + idx * 60 + 80);
+      // soft thud when this tile lands in the box
+      setTimeout(() => Sound.drop(), 120 + 560 * 0.7 + idx * 60);
+      t.addEventListener('click', () => {
+        if (!tapOk() || this.locked || t.classList.contains('used')) return;
+        const slotIdx = state.chosen.findIndex((x) => x == null);
+        if (slotIdx === -1) return;
+        state.chosen[slotIdx] = idx;
+        t.classList.add('used');
+        setSlotVisual(slotIdx);
+        Sound.tap();
+        maybeCheck();
+      });
+      poolEl.appendChild(t);
+    });
+
+    /* ---- drag & drop (pointer events; taps still work) ---- */
+    let tracking = false;
+    const THRESH = 6;
+    const makeGhost = (text) => {
+      const g = document.createElement('div');
+      g.className = 'tile drag-ghost';
+      g.textContent = text;
+      document.body.appendChild(g);
+      return g;
+    };
+    const placeGhost = (g, x, y) => {
+      g.style.transform = `translate(${x}px, ${y}px) translate(-50%, -58%) rotate(2.5deg) scale(1.15)`;
+    };
+    // animate the ghost into a target rect, then commit
+    const flyGhost = (g, rect, done) => {
+      g.style.transition = 'transform 150ms cubic-bezier(.2,.8,.3,1.2), opacity 150ms ease';
+      g.style.transform = `translate(${rect.x + rect.width / 2}px, ${rect.y + rect.height / 2}px) translate(-50%, -50%) rotate(0deg) scale(1)`;
+      setTimeout(() => { g.remove(); done && done(); }, 160);
+    };
+    const slotPop = (i) => {
+      const el = slotsEl.children[i];
+      el.classList.remove('pop'); void el.offsetWidth;
+      el.classList.add('pop');
+    };
+    const clearDropMarks = () => {
+      slotsEl.querySelectorAll('.drop-ok').forEach((x) => x.classList.remove('drop-ok'));
+      poolEl.classList.remove('pool-drop-ok');
+    };
+    const slotAtPoint = (x, y) => {
+      const el = document.elementFromPoint(x, y);
+      return el ? el.closest('.slot') : null;
+    };
+    const beginTrack = (e, onStart) => {
+      if (tracking) return;
+      tracking = true;
+      const sx = e.clientX, sy = e.clientY;
+      let ctx = null;
+      const move = (ev) => {
+        if (!ctx && Math.hypot(ev.clientX - sx, ev.clientY - sy) > THRESH) {
+          ctx = onStart(ev);
+          document.body.classList.add('scr-dragging', ctx.fromPool ? 'scr-dragging-pool' : 'scr-dragging-slot');
+        }
+        if (ctx) {
+          placeGhost(ctx.ghost, ev.clientX, ev.clientY);
+          clearDropMarks();
+          const slot = slotAtPoint(ev.clientX, ev.clientY);
+          if (slot && !slot.classList.contains('locked') && ctx.acceptsSlot(slot)) slot.classList.add('drop-ok');
+          if (!ctx.fromPool) poolEl.classList.add('pool-drop-ok');
+        }
+      };
+      const finish = (ev, commit) => {
+        window.removeEventListener('pointermove', move);
+        tracking = false;
+        if (!ctx) return; // plain tap — let the click handler do its job
+        document.body.classList.remove('scr-dragging', 'scr-dragging-pool', 'scr-dragging-slot');
+        clearDropMarks();
+        justDragged = true;
+        setTimeout(() => (justDragged = false), 0);
+        const slot = commit && ev ? slotAtPoint(ev.clientX, ev.clientY) : null;
+        if (slot && !slot.classList.contains('locked') && ctx.acceptsSlot(slot)) {
+          flyGhost(ctx.ghost, slot.getBoundingClientRect(), () => ctx.drop(slot));
+        } else if (!slot && commit && ctx.toPool) {
+          flyGhost(ctx.ghost, poolEl.getBoundingClientRect(), ctx.toPool);
+        } else {
+          flyGhost(ctx.ghost, ctx.homeRect(), ctx.restore); // snap back home
+        }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', (ev) => finish(ev, true), { once: true });
+      window.addEventListener('pointercancel', () => finish(null, false), { once: true });
+    };
+
+    // draggable pool tiles
+    [...poolEl.children].forEach((t, idx) => {
+      t.addEventListener('pointerdown', (e) => {
+        if (e.button > 0 || this.locked || t.classList.contains('used')) return;
+        beginTrack(e, () => {
+          t.classList.add('lifted');
+          return {
+            fromPool: true,
+            ghost: makeGhost(t.textContent),
+            acceptsSlot: () => true,
+            drop: (slot) => {
+              t.classList.remove('lifted');
+              const si = parseInt(slot.dataset.i, 10);
+              const cur = state.chosen[si];
+              if (cur != null) poolEl.children[cur].classList.remove('used'); // kick out occupant
+              state.chosen[si] = idx;
+              t.classList.add('used');
+              setSlotVisual(si);
+              slotPop(si);
+              Sound.tap();
+              maybeCheck();
+            },
+            toPool: null,
+            homeRect: () => t.getBoundingClientRect(),
+            restore: () => t.classList.remove('lifted'),
+          };
+        });
+      });
+    });
+
+    // draggable filled slots (move / swap / drag back to pool)
+    [...slotsEl.children].forEach((s, i) => {
+      s.addEventListener('pointerdown', (e) => {
+        if (e.button > 0 || this.locked || lockedIn.includes(i) || state.chosen[i] == null) return;
+        beginTrack(e, () => {
+          s.classList.add('lifted-slot');
+          return {
+            fromPool: false,
+            ghost: makeGhost(s.textContent),
+            acceptsSlot: (slot) => slot !== s,
+            drop: (slot) => {
+              s.classList.remove('lifted-slot');
+              const ti = parseInt(slot.dataset.i, 10);
+              const a = state.chosen[i], b = state.chosen[ti];
+              state.chosen[ti] = a; state.chosen[i] = b; // move, or swap if occupied
+              setSlotVisual(i); setSlotVisual(ti);
+              slotPop(ti);
+              if (b != null) slotPop(i);
+              Sound.tap();
+              maybeCheck();
+            },
+            toPool: () => { // released outside the slots → return the letter to the pool
+              s.classList.remove('lifted-slot');
+              poolEl.children[state.chosen[i]].classList.remove('used');
+              state.chosen[i] = null;
+              setSlotVisual(i);
+              Sound.tap();
+            },
+            homeRect: () => s.getBoundingClientRect(),
+            restore: () => s.classList.remove('lifted-slot'),
+          };
+        });
+      });
+    });
+
+    $('scr-skip').addEventListener('click', () => {
+      if (this.locked) return;
+      this.markAnswer(false);
+      this.revealScramble(item, true);
+    });
+
+    $('scr-hint').addEventListener('click', () => {
+      if (this.locked || hintLevel >= 3) return;
+      if (hintLevel <= 1) {
+        // lock one correct letter into the first empty-or-wrong slot
+        let target = -1;
+        for (let i = 0; i < word.length; i++) {
+          if (lockedIn.includes(i)) continue;
+          const cur = state.chosen[i];
+          if (cur == null || poolEl.children[cur].textContent !== word[i]) { target = i; break; }
+        }
+        if (target === -1) return;
+        const cur = state.chosen[target];
+        if (cur != null) poolEl.children[cur].classList.remove('used');
+        const poolIdx = [...poolEl.children].findIndex((x) => !x.classList.contains('used') && x.textContent === word[target]);
+        if (poolIdx === -1) return;
+        state.chosen[target] = poolIdx;
+        poolEl.children[poolIdx].classList.add('used');
+        const slot = slotsEl.children[target];
+        slot.textContent = word[target];
+        slot.classList.add('filled', 'locked');
+        lockedIn.push(target);
+        Sound.tap();
+        maybeCheck();
+      } else {
+        $('scr-def').innerHTML = icon('book') + ' <b>' + esc(item.d) + '</b>';
+        $('scr-def').hidden = false;
+        $('scr-def').classList.add('meaning');
+      }
+      this.addPoints(-HINTS[hintLevel].cost);
+      hintLevel++;
+      setHintBtn(hintLevel >= 3 ? 'No more hints' : HINTS[hintLevel].label, hintLevel >= 3, hintLevel === 2);
+    });
+    setHintBtn(HINTS[0].label, false);
+  },
+
+  checkScramble(state, item, slotsEl, lockedIn) {
+    const word = item.w;
+    const guess = [...slotsEl.children].map((s) => s.textContent).join('');
+    if (guess === word) {
+      this.markAnswer(true);
+      const award = 10 + Math.min(this.streak - 1, 4) * 2;
+      this.addPoints(award);
+      Sound.correct();
+      // celebrate: burst over the slots + floating points
+      const r = slotsEl.getBoundingClientRect();
+      confettiBurst(r.x + r.width / 2, r.y + r.height / 2);
+      floatPoints('+' + award, r.x + r.width / 2, r.y - 6);
+      this.revealScramble(item, false);
+    } else {
+      Sound.wrong();
+      slotsEl.classList.add('shake');
+      setTimeout(() => slotsEl.classList.remove('shake'), 450);
+      // return non-locked letters to the pool so the player can fix them
+      setTimeout(() => {
+        [...slotsEl.children].forEach((slot, i) => {
+          if (lockedIn.includes(i)) return;
+          const cur = state.chosen[i];
+          if (cur != null) poolOf(slotsEl).children[cur].classList.remove('used');
+          state.chosen[i] = null;
+          slot.textContent = '';
+          slot.classList.remove('filled');
+        });
+      }, 420);
+      function poolOf() { return document.getElementById('scr-pool'); }
+    }
+  },
+
+  revealScramble(item, skipped) {
+    this.locked = true;
+    const body = $('game-body');
+    const nextLabel = this.round + 1 >= this.rounds ? 'See results' : 'Next word';
+    body.innerHTML = `
+      <div class="card solved-box">
+        <p class="hint-def">${skipped ? 'The word was:' : icon('check') + ' You got it!'}</p>
+        <div class="solved-word">${[...item.w].map((ch, i) => `<span style="animation-delay:${i * 60}ms">${ch}</span>`).join('')}</div>
+        <p class="hint-def">${esc(item.d)}</p>
+        <div class="scramble-actions" style="margin-top:18px">
+          <button class="btn" id="scr-next">${icon('arrowR')}<span>${nextLabel}</span></button>
+        </div>
+      </div>`;
+    $('scr-next').addEventListener('click', () => this.nextRound());
+  },
+
+};
+
+/* ================================================================
+   UI WIRING
+   ================================================================ */
+let selectedTopic = (() => {
+  try {
+    const saved = localStorage.getItem('wordlab.topic');
+    if (saved && (saved === 'all' || CATEGORIES[saved])) return saved;
+  } catch (e) {}
+  return 'all'; // "All" is the recommended first choice
+})();
+try { localStorage.setItem('wordlab.topic', selectedTopic); } catch (e) {}
+
+function buildTopicChips() {
+  const wrap = $('topic-chips');
+  wrap.innerHTML = '';
+  const topics = [{ key: 'all', name: 'All' }, ...Object.entries(CATEGORIES).map(([key, cfg]) => ({ key, name: cfg.name }))];
+  topics.forEach(({ key, name }) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'topic-chip' + (key === selectedTopic ? ' selected' : '');
+    chip.innerHTML = icon(topicMeta(key).icon) + '<span>' + name + '</span>';
+    chip.addEventListener('click', () => {
+      if (selectedTopic === key) return;
+      selectedTopic = key;
+      try { localStorage.setItem('wordlab.topic', key); } catch (e) {}
+      Sound.tap();
+      buildTopicChips();
+      prefetchTopic(key); // warm the cache while the player aims at PLAY
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+/* silently warm a topic's word cache in the background */
+function prefetchTopic(cat) {
+  if (DataHub.readCache(cat)) return;
+  DataHub.loadCategory(cat).catch(() => {});
+}
+
+/* --- static icon injection (chrome buttons, logo) --- */
+$('brand-logo').innerHTML = icon('flask');
+$('btn-play').innerHTML = icon('play') + '<span>PLAY</span>';
+$('btn-game-back').innerHTML = icon('arrowL');
+$('score-pill').insertAdjacentHTML('afterbegin', icon('star'));
+
+/* --- theme: fully automatic — always follows the system, no manual controls --- */
+const Theme = {
+  mq: window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null,
+  light: false,
+  apply() {
+    this.light = this.mq ? this.mq.matches : false;
+    document.body.classList.toggle('light', this.light);
+  },
+};
+if (Theme.mq) {
+  const onSystemChange = () => Theme.apply();
+  if (Theme.mq.addEventListener) Theme.mq.addEventListener('change', onSystemChange);
+  else if (Theme.mq.addListener) Theme.mq.addListener(onSystemChange); // old Safari
+}
+Theme.apply();
+
+let currentLoadToken = 0;
+async function startCategory(cat, forceRefresh = false) {
+  const token = ++currentLoadToken;
+  const meta = topicMeta(cat);
+  const cached = !!DataHub.readCache(cat);
+  $('load-emoji').innerHTML = icon(meta.icon);
+  $('load-status').textContent = cached ? 'Get ready…' : 'Collecting your words…';
+  $('load-sub').textContent = meta.name;
+  showScreen('screen-loading');
+  const started = Date.now();
+
+  let result;
+  try {
+    result = await DataHub.loadCategory(cat, { forceRefresh }, (s) => {
+      if (token === currentLoadToken && !cached) $('load-status').textContent = s;
+    });
+  } catch (e) {
+    result = { items: shuffle(SEEDS[cat]).map(([w, d]) => ({ w, d })), offline: true };
+  }
+
+  if (token !== currentLoadToken) return; // user navigated away meanwhile
+  await sleep(Math.max(0, cached ? 450 : 600 - (Date.now() - started))); // let the loader breathe
+
+  if (result.offline) toast('Could not reach the word robots — using built-in words');
+  Sound.ensure();
+  Game.start(cat, result.items);
+}
+
+/* --- start screen --- */
+buildTopicChips();
+$('btn-play').addEventListener('click', () => startCategory(selectedTopic));
+prefetchTopic(selectedTopic);
+
+/* --- game chrome --- */
+$('btn-game-back').addEventListener('click', () => {
+  currentLoadToken++;
+  buildTopicChips();
+  showScreen('screen-home');
+});
+const muteBtn = $('btn-mute');
+function renderMute() { muteBtn.innerHTML = icon(Sound.muted ? 'volumeX' : 'volume'); }
+muteBtn.addEventListener('click', () => {
+  Sound.muted = !Sound.muted;
+  try { localStorage.setItem('wordlab.muted', Sound.muted ? '1' : '0'); } catch (e) {}
+  renderMute();
+});
+renderMute();
+</script>
+</body>
+</html>
